@@ -718,3 +718,44 @@ async def test_non_zai_provider_numeric_code_stays_rate_limit(allow_model_reques
     assert not isinstance(exc_info.value, ModelQuotaExceededError)
     assert exc_info.value.status_code == 429
     assert exc_info.value.provider_error_code == '1113'
+
+
+async def test_shared_openai_provider_namespace_not_mutated_by_zai_model(allow_model_requests: None):
+    """Constructing a ZaiModel with a shared OpenAIProvider does not mutate the provider's namespace."""
+    import httpx2
+    from openai import AsyncOpenAI
+
+    from pydantic_ai.models.openai import OpenAIChatModel
+    from pydantic_ai.providers.openai import OpenAIProvider
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(429, json={'code': '1113', 'message': 'Insufficient balance or rate limit'})
+
+    client = AsyncOpenAI(
+        api_key='test',
+        base_url='http://localhost/v1',
+        max_retries=0,
+        http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler)),
+    )
+    shared_provider = OpenAIProvider(openai_client=client)
+
+    zai_model = ZaiModel('glm-5.2', provider=shared_provider)
+    openai_model = OpenAIChatModel('gpt-5.2', provider=shared_provider)
+
+    # The shared provider namespace is not mutated
+    assert shared_provider.model_id_namespace == 'openai'
+
+    # ZaiModel classifies 1113 as ModelQuotaExceededError
+    with pytest.raises(ModelQuotaExceededError) as exc_zai:
+        await Agent(zai_model).run('Say ok.')
+    assert isinstance(exc_zai.value, ModelHTTPError)
+    assert exc_zai.value.status_code == 429
+    assert exc_zai.value.provider_error_code == '1113'
+
+    # OpenAIChatModel using the same shared provider classifies 1113 as ModelRateLimitError
+    with pytest.raises(ModelRateLimitError) as exc_openai:
+        await Agent(openai_model).run('Say ok.')
+    assert isinstance(exc_openai.value, ModelHTTPError)
+    assert not isinstance(exc_openai.value, ModelQuotaExceededError)
+    assert exc_openai.value.status_code == 429
+    assert exc_openai.value.provider_error_code == '1113'

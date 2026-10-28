@@ -170,8 +170,12 @@ class ZaiModel(OpenAIChatModel):
             settings: Model-specific settings that will be used as defaults for this model.
         """
         super().__init__(model_name, provider=provider, profile=profile, settings=settings)
-        if self._provider.model_id_namespace == 'openai':
-            self._provider._model_id_namespace = 'zai'  # pyright: ignore[reportPrivateUsage]
+
+    @property
+    @override
+    def _model_id_namespace(self) -> str:
+        provider_ns = self._provider.model_id_namespace
+        return provider_ns if provider_ns.startswith('gateway/') else 'zai'
 
     @override
     def prepare_request(

@@ -1514,6 +1514,10 @@ class OpenAIChatModel(Model[AsyncOpenAI]):
         """The model name."""
         return self._model_name
 
+    @property
+    def _model_id_namespace(self) -> str:
+        return self._provider.model_id_namespace
+
     def resolve_cache_retention(self, model_settings: ModelSettings | None) -> timedelta | None:
         """Resolve the prompt cache retention requested by OpenAI settings or the unified `cache` setting."""
         return _resolve_legacy_cache_retention(
@@ -1736,7 +1740,7 @@ class OpenAIChatModel(Model[AsyncOpenAI]):
 
         _drop_unsupported_params(profile, model_settings)
 
-        with _map_api_errors(self.model_name, self._provider.model_id_namespace), map_decode_errors(self.model_name):
+        with _map_api_errors(self.model_name, self._model_id_namespace), map_decode_errors(self.model_name):
             try:
                 extra_headers = dict(model_settings.get('extra_headers', {}))
                 extra_headers.setdefault('User-Agent', get_user_agent())
@@ -1971,7 +1975,7 @@ class OpenAIChatModel(Model[AsyncOpenAI]):
         peekable_response: _utils.PeekableAsyncStream[ChatCompletionChunk, AsyncStream[ChatCompletionChunk]] = (
             _utils.PeekableAsyncStream(response)
         )
-        with _map_api_errors(self.model_name, self._provider.model_id_namespace), map_decode_errors(self.model_name):
+        with _map_api_errors(self.model_name, self._model_id_namespace), map_decode_errors(self.model_name):
             first_chunk = await peekable_response.peek()
         if isinstance(first_chunk, _utils.Unset):
             raise UnexpectedModelBehavior(  # pragma: no cover
@@ -1988,7 +1992,7 @@ class OpenAIChatModel(Model[AsyncOpenAI]):
             _model_profile=self.profile,
             _response=peekable_response,
             _provider_name=self._provider.name,
-            _model_id_namespace=self._provider.model_id_namespace,
+            _model_id_namespace=self._model_id_namespace,
             _provider_url=self._provider.base_url,
             _model_settings=model_settings,
         )
@@ -3125,6 +3129,10 @@ class OpenAIResponsesModel(Model[AsyncOpenAI]):
         """The model name."""
         return self._model_name
 
+    @property
+    def _model_id_namespace(self) -> str:
+        return self._provider.model_id_namespace
+
     def resolve_cache_retention(self, model_settings: ModelSettings | None) -> timedelta | None:
         """Resolve the prompt cache retention requested by OpenAI settings or the unified `cache` setting."""
         return _resolve_legacy_cache_retention(
@@ -3487,7 +3495,7 @@ class OpenAIResponsesModel(Model[AsyncOpenAI]):
         )
 
         extra_headers, timeout = self._build_request_options(settings)
-        with _map_api_errors(self.model_name, self._provider.model_id_namespace), map_decode_errors(self.model_name):
+        with _map_api_errors(self.model_name, self._model_id_namespace), map_decode_errors(self.model_name):
             response = await with_max_retries(self.client, settings).responses.input_tokens.count(
                 model=request_params.model,
                 input=request_params.input,
@@ -3769,7 +3777,7 @@ class OpenAIResponsesModel(Model[AsyncOpenAI]):
         peekable_response: _utils.PeekableAsyncStream[
             responses.ResponseStreamEvent, AsyncStream[responses.ResponseStreamEvent]
         ] = _utils.PeekableAsyncStream(response)
-        with _map_api_errors(self.model_name, self._provider.model_id_namespace), map_decode_errors(self.model_name):
+        with _map_api_errors(self.model_name, self._model_id_namespace), map_decode_errors(self.model_name):
             first_chunk = await peekable_response.peek()
         if isinstance(first_chunk, _utils.Unset):
             # Covered by the Codex forced-stream path, which drains empty streams through here.
@@ -3806,7 +3814,7 @@ class OpenAIResponsesModel(Model[AsyncOpenAI]):
             _model_settings=model_settings,
             _response=peekable_response,
             _provider_name=self._provider.name,
-            _model_id_namespace=self._provider.model_id_namespace,
+            _model_id_namespace=self._model_id_namespace,
             _provider_url=self._provider.base_url,
             _provider_timestamp=provider_timestamp,
             _history=history,
@@ -4136,7 +4144,7 @@ class OpenAIResponsesModel(Model[AsyncOpenAI]):
         )
         extra_headers, timeout = self._build_request_options(model_settings)
 
-        with _map_api_errors(self.model_name, self._provider.model_id_namespace), map_decode_errors(self.model_name):
+        with _map_api_errors(self.model_name, self._model_id_namespace), map_decode_errors(self.model_name):
             try:
                 return await with_max_retries(self.client, model_settings).responses.create(
                     **create_params,
@@ -4307,7 +4315,7 @@ class OpenAIResponsesModel(Model[AsyncOpenAI]):
         """Retrieve a background response by ID, optionally streaming."""
         include = self._build_include(model_settings, is_retrieve=True)
         extra_headers, timeout = self._build_request_options(model_settings)
-        with _map_api_errors(self.model_name, self._provider.model_id_namespace), map_decode_errors(self.model_name):
+        with _map_api_errors(self.model_name, self._model_id_namespace), map_decode_errors(self.model_name):
             try:
                 return await with_max_retries(self.client, model_settings).responses.retrieve(
                     response_id=response_id,
