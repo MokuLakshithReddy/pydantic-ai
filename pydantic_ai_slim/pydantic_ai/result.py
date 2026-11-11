@@ -102,7 +102,7 @@ class AgentStream(Generic[AgentDepsT, OutputDataT]):
     async def stream_output(self, *, debounce_by: float | None = 0.1) -> AsyncIterator[OutputDataT]:
         """Asynchronously stream the (validated) agent outputs."""
         if self._has_cached_output:
-            yield deepcopy(self._cached_output)
+            yield deepcopy(cast(OutputDataT, self._cached_output))
             return
 
         last_response: _messages.ModelResponse | None = None
@@ -127,7 +127,7 @@ class AgentStream(Generic[AgentDepsT, OutputDataT]):
             # 2. Users can rely on the last yielded item being the fully validated output
             self._cached_output = await self.validate_response_output(response)
             self._has_cached_output = True
-            yield deepcopy(self._cached_output)
+            yield deepcopy(cast(OutputDataT, self._cached_output))
 
     async def stream_response(self, *, debounce_by: float | None = 0.1) -> AsyncIterator[_messages.ModelResponse]:
         """Asynchronously stream the (unvalidated) model responses for the agent.
@@ -264,7 +264,7 @@ class AgentStream(Generic[AgentDepsT, OutputDataT]):
     async def get_output(self) -> OutputDataT:
         """Stream the whole response, validate the output and return it."""
         if self._has_cached_output:
-            return deepcopy(self._cached_output)
+            return deepcopy(cast(OutputDataT, self._cached_output))
 
         # Iterate through any stream events
         async for _ in self:
@@ -273,13 +273,13 @@ class AgentStream(Generic[AgentDepsT, OutputDataT]):
         # Final validation with `allow_partial=False` (default)
         self._cached_output = await self.validate_response_output(self.response)
         self._has_cached_output = True
-        return deepcopy(self._cached_output)
+        return deepcopy(cast(OutputDataT, self._cached_output))
 
     def _settled_output(self) -> tuple[OutputDataT, str | None]:
         """The validated output and the name of the output tool that produced it, if any.
 
         Every path that consumes a stream to the end validates the response and caches the result,
-        so by then `_cached_output` holds it. Cancelling does not: it marks the stream complete
+        so by then `_has_cached_output` is true. Cancelling does not: it marks the stream complete
         without a final response, and there is no output to settle on.
         """
         if not self._has_cached_output and self.cancelled:
