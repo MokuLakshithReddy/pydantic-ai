@@ -25,6 +25,7 @@ from pydantic_ai import (
     RunUsage,
     ToolCallPart,
     ToolReturnPart,
+    TextOutput,
     UnexpectedModelBehavior,
     UserError,
 )
@@ -307,6 +308,21 @@ async def test_cancelling_after_the_output_arrived_still_settles() -> None:
         await streamed.cancel()
 
         assert streamed.result.output == 'settled'
+
+
+async def test_cancelling_after_none_output_arrived_still_settles() -> None:
+    """None is a valid output and must remain settled after a later cancellation."""
+
+    def to_none(_: str) -> None:
+        return None
+
+    agent = Agent(TestModel(custom_output_text='hello'), output_type=TextOutput(to_none))
+
+    async with agent.run_stream('Stream this') as streamed:
+        assert await streamed.get_output() is None
+        await streamed.cancel()
+
+        assert streamed.result.output is None
 
 
 @pytest.mark.parametrize('method', ['stream_text', 'stream_text_delta', 'stream_response'])
